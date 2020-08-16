@@ -1,4 +1,4 @@
-version = '1.1'
+version = '1.2'
 from time import sleep
 from random import randint, choice
 from console.utils import cls
@@ -53,7 +53,7 @@ class BouncyGrid():
 	def findSolids(self, coord, deltas):
 		bouncex, bouncey = False, False
 		target = self.coords[(coord[0]+deltas[0],coord[1]+deltas[1])]
-		if target == ' ':
+		if target == ' ' or (isinstance(target, BouncyEntity) and coord == target.pos):
 			return bouncex, bouncey, None
 		else:
 			if self.coords[(coord[0],coord[1]+deltas[1])] == ' ' or self.coords[(coord[0]+deltas[0],coord[1])] != ' ':
@@ -75,7 +75,8 @@ class BouncyGrid():
 			if wally:
 				entity.deltas[1] *= -1
 				entity.speed[1] *= -1
-		else:
+			return True
+		elif solidtype:
 			impacted = self.coords[(entity.pos[0]+entity.deltas[0],entity.pos[1]+entity.deltas[1])]
 			if wallx:
 				entity.deltas[0] *= -1
@@ -83,6 +84,7 @@ class BouncyGrid():
 			if wally:
 				entity.deltas[1] *= -1
 				entity.speed[1], impacted.speed[1] = impacted.speed[1], entity.speed[1]
+			return True
 
 	def bounceLoop(self, clockspeed=0.02, row_offset=0): 
 		print(sc.hide_cursor)
@@ -90,6 +92,7 @@ class BouncyGrid():
 		for _ in range(1000): #Turn this into a while true loop with a break condition
 			sleep(clockspeed)
 			self.printGrid(rows_full)
+			#input('')
 			for entity in self.entities:
 				entity.xenergy += entity.speed[0]
 				if entity.xenergy >= 100:
@@ -110,12 +113,13 @@ class BouncyGrid():
 				else:
 					entity.deltas[1] = 0
 				
-				self.checkDirectBounce(entity)
+				for _ in range(2): #this only works for one tile in the middle. energy is not transferred when there are two or more
+					directbounce = self.checkDirectBounce(entity)
 				entity.newpos = (entity.pos[0]+entity.deltas[0], entity.pos[1]+entity.deltas[1]) #new position before entity collision
 
 
 			newpositions = [entity.newpos for entity in self.entities]
-			while any([newpositions.count(newposition) > 1 for newposition in set(newpositions)]): #check why speed and direction is bugged
+			while any([newpositions.count(newposition) > 1 for newposition in set(newpositions)]): #check why speed and direction is sometimes bugged #this checks if two or more entities want to move in the same direction and makes them bounce
 				for newposition in set(newpositions):
 					if newpositions.count(newposition) > 1:
 						indexes_to_exchange = [i for i, value in enumerate(newpositions) if value == newposition]
@@ -152,7 +156,8 @@ class BouncyGrid():
 						for i, entity in enumerate(involved_entities):
 							entity.deltas = newspeeds[i][0]
 							entity.speed = newspeeds[i][1]
-							self.checkDirectBounce(entity)
+							for _ in range(2):
+								directbounce = self.checkDirectBounce(entity)
 							entity.newpos = (entity.pos[0]+entity.deltas[0], entity.pos[1]+entity.deltas[1])
 				newpositions = [entity.newpos for entity in self.entities]
 			for entity in self.entities:
@@ -204,7 +209,28 @@ if __name__ == '__main__':
 	a.addEntities('@', pos=(48,48), speed=[-100,-100])
 	'''
 	
+	'''
+	a = BouncyGrid(50,51)
+	a.addEntities('@', pos=(1,1), speed=[0,100])
+	a.addEntities('@', pos=(1,25), speed=[0,0])
+	a.addEntities('@', pos=(1,49), speed=[0,-100])
+	'''
+
+	'''
+	a = BouncyGrid(50,50)
+	a.addEntities('@', pos=(1,1), speed=[0,100])
+	a.addEntities('@', pos=(1,24), speed=[0,0])
+	a.addEntities('@', pos=(1,25), speed=[0,0])
+	a.addEntities('@', pos=(1,48), speed=[0,-100])
+	'''
+
+
+	
 	a = BouncyGrid()
 	a.addEntities('@', howmany=50)
+	
+
+
+
 	a.bounceLoop()
 	input('')
