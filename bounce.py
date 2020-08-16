@@ -1,4 +1,4 @@
-version = '1.0'
+version = '1.1'
 from time import sleep
 from random import randint, choice
 from console.utils import cls
@@ -50,18 +50,41 @@ class BouncyGrid():
 			self.coords[(newpos)] = self.entities[-1]
 			self.entities[-1].pos = newpos
 
-	def findSolidWall(self, coord, deltas):
+	def findSolids(self, coord, deltas):
 		bouncex, bouncey = False, False
-		if self.coords[(coord[0]+deltas[0],coord[1]+deltas[1])] != '#':
-			return bouncex, bouncey
+		target = self.coords[(coord[0]+deltas[0],coord[1]+deltas[1])]
+		if target == ' ':
+			return bouncex, bouncey, None
 		else:
-			if self.coords[(coord[0],coord[1]+deltas[1])] != '#' or self.coords[(coord[0]+deltas[0],coord[1])] == '#':
+			if self.coords[(coord[0],coord[1]+deltas[1])] == ' ' or self.coords[(coord[0]+deltas[0],coord[1])] != ' ':
 				bouncex = True
-			if self.coords[(coord[0]+deltas[0],coord[1])] != '#' or self.coords[(coord[0],coord[1]+deltas[1])] == '#':
+			if self.coords[(coord[0]+deltas[0],coord[1])] == ' ' or self.coords[(coord[0],coord[1]+deltas[1])] != ' ':
 				bouncey = True
-			return bouncex, bouncey
+			if isinstance(target, BouncyEntity):
+				solidtype = target.symbol
+			else:
+				solidtype = '#'
+			return bouncex, bouncey, solidtype
 
-	def bounceLoop(self, clockspeed=0.02, row_offset=0): #think of a way to simulate threeway collisions
+	def checkDirectBounce(self, entity):
+		wallx, wally, solidtype = self.findSolids(entity.pos, entity.deltas)
+		if solidtype == '#':
+			if wallx:
+				entity.deltas[0] *= -1
+				entity.speed[0] *= -1
+			if wally:
+				entity.deltas[1] *= -1
+				entity.speed[1] *= -1
+		else:
+			impacted = self.coords[(entity.pos[0]+entity.deltas[0],entity.pos[1]+entity.deltas[1])]
+			if wallx:
+				entity.deltas[0] *= -1
+				entity.speed[0], impacted.speed[0] = impacted.speed[0], entity.speed[0]
+			if wally:
+				entity.deltas[1] *= -1
+				entity.speed[1], impacted.speed[1] = impacted.speed[1], entity.speed[1]
+
+	def bounceLoop(self, clockspeed=0.02, row_offset=0): 
 		print(sc.hide_cursor)
 		rows_full=self.rows+row_offset
 		for _ in range(1000): #Turn this into a while true loop with a break condition
@@ -87,13 +110,7 @@ class BouncyGrid():
 				else:
 					entity.deltas[1] = 0
 				
-				wallx, wally = self.findSolidWall(entity.pos, entity.deltas)
-				if wallx:
-					entity.deltas[0] *= -1
-					entity.speed[0] *= -1
-				if wally:
-					entity.deltas[1] *= -1
-					entity.speed[1] *= -1
+				self.checkDirectBounce(entity)
 				entity.newpos = (entity.pos[0]+entity.deltas[0], entity.pos[1]+entity.deltas[1]) #new position before entity collision
 
 
@@ -135,13 +152,7 @@ class BouncyGrid():
 						for i, entity in enumerate(involved_entities):
 							entity.deltas = newspeeds[i][0]
 							entity.speed = newspeeds[i][1]
-							wallx, wally = self.findSolidWall(entity.pos, entity.deltas)
-							if wallx:
-								entity.speed[0] *= -1
-								entity.deltas[0] *= -1
-							if wally:
-								entity.speed[1] *= -1
-								entity.deltas[1] *= -1					
+							self.checkDirectBounce(entity)
 							entity.newpos = (entity.pos[0]+entity.deltas[0], entity.pos[1]+entity.deltas[1])
 				newpositions = [entity.newpos for entity in self.entities]
 			for entity in self.entities:
@@ -185,13 +196,15 @@ if __name__ == '__main__':
 	user32.ShowWindow(hWnd, SW_MAXIMISE)
 	###############################################
 
-	a = BouncyGrid(50,120)
-	a.addEntities('@', howmany=100)
+	'''
+	a = BouncyGrid(50,50)
+	a.addEntities('@', pos=(1,2), speed=[0,100])
+	a.addEntities('@', pos=(1,10), speed=[0,-50])
+	a.addEntities('@', pos=(1,1), speed=[100,100])
+	a.addEntities('@', pos=(48,48), speed=[-100,-100])
+	'''
 	
-	'''
-	a.addEntities('@', pos=(1,1), speed=[0,100])
-	a.addEntities('@', pos=(1,60), speed=[0,0])
-	a.addEntities('@', pos=(1,118), speed=[0,-100])
-	'''
+	a = BouncyGrid()
+	a.addEntities('@', howmany=50)
 	a.bounceLoop()
 	input('')
