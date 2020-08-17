@@ -8,6 +8,8 @@ from console import fg, bg, fx
 class BouncyGrid():
 	'''
 	Main grid class. Stores contents of the grid in a dictionary (self.coords). Outer rims of the grid are built with Wall() objects.
+	Walls are added to a list in case I will want to manipulate them in the future.
+	The same goes for gravity and friction attributes. Not currently implemented, but included for future developments.
 	'''
 	def __init__(self, rows=50, cols=120, gravity=0, friction=0):
 		self.rows = rows
@@ -204,6 +206,7 @@ class BouncyEntity():
 	energy = determines whether entity will move in a given iteration of the loop (speed is added to energy every iteration)
 	deltas = indicates to which direction the entity will move (set depending on the speed, ranging from -1 to 1)
 	pos, targetpos = current and future position of the entity
+	In the future add an acceleration attribute (to go with gravity and friction attributes of the grid)...
 	'''
 	def __init__(self, symbol, solidtype='bouncy', elasticity=100, fgcolor='white', bgcolor='default', speed=None):
 		self.symbol=wrapColor(symbol, fgcolor, bgcolor)
