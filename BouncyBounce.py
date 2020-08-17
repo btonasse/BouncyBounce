@@ -1,4 +1,4 @@
-version = '1.3'
+version = '1.4'
 from time import sleep
 from random import randint, choice
 from console.utils import cls
@@ -6,6 +6,9 @@ from console.screen import sc
 from console import fg, bg, fx
 
 class BouncyGrid():
+	'''
+	Main grid class. Stores contents of the grid in a dictionary (self.coords). Outer rims of the grid are built with Wall() objects.
+	'''
 	def __init__(self, rows=50, cols=120, gravity=0, friction=0):
 		self.rows = rows
 		self.cols = cols
@@ -23,6 +26,9 @@ class BouncyGrid():
 					self.coords[(x,y)] = ' '
 
 	def printGrid(self, rows_full):
+		'''
+		Prints the grid. To avoid flickering, returns the cursor to the top and prints the whole grid as a string over it.
+		'''
 		print("\033[F"*rows_full, end='')
 		grid = ''
 		for x in range(self.rows):
@@ -40,6 +46,10 @@ class BouncyGrid():
 		pass
 
 	def addEntity(self, symbol, solidtype='bouncy', elasticity=100, fore='rand', back='default', pos='rand', speed=None):
+		'''
+		Adds entities (objects that will be moving) to the grid. Position can be either specified or randomized (default).
+		Automatically instantiates entities as BouncyEntity objects, which can have their attributes specified from here.
+		'''
 		newpos = ''
 		if pos == 'rand':
 			while not newpos or self.coords[newpos] != ' ': 
@@ -52,7 +62,14 @@ class BouncyGrid():
 		self.coords[(newpos)] = self.entities[-1]
 		self.entities[-1].pos = newpos
 
-	def evalImpact(self): 
+	def evalImpact(self):
+		'''
+		Puts all entities in a queue and changes their speed/deltas depending on what they are colliding with.
+		Once an entity has been handled it is removed from the queue, but any entities impacted by it will be added to the queue,
+		to account for chain reactions.
+		Since this models elastic collisions, hitting a Wall or other immobile object just reverses the speed. Hitting another movable object
+		exchanges velocities.
+		'''
 		entity_queue = sorted([entity for entity in self.entities], key=lambda x: (x.energy[0]+x.energy[1])/2)
 		while len(entity_queue) > 0:
 			target = entity_queue[0].targetpos
@@ -112,15 +129,27 @@ class BouncyGrid():
 				entity_queue.pop(0)
 				continue
 	
-		
 	
 	def updateDeltas(self, entity):
+		'''
+		Updates deltas of entities based on their speed.
+		'''
 		entity.deltas = [entity.speed[0]//(abs(entity.speed[0]) or 1), entity.speed[1]//(abs(entity.speed[1]) or 1)]
 	def updateTargetPos(self, entity):
+		'''
+		Updates target position of entities based on their deltas.
+		'''
 		entity.targetpos = (entity.pos[0]+entity.deltas[0],entity.pos[1]+entity.deltas[1])
 
 
 	def updateEntities(self):
+		'''
+		Master function to evaluate whether and in which direction an entity will move.
+		Each entity has an energy attribute to which their speed attribute directs adds. Once the energy goes over 100,
+		the entity will move one space in the direction of its speed (represented by the deltas attribute).
+		Then evalImpact() is called to resolve any collisions (with other entities or walls).
+		Finally, self.coords dictionary is updated with the new positions of the entities.
+		'''
 		for entity in self.entities:
 			entity.energy[0] += abs(entity.speed[0])
 			entity.energy[1] += abs(entity.speed[1])
@@ -147,17 +176,35 @@ class BouncyGrid():
 
 
 
-	def bounceLoop(self, clockspeed=0.02, row_offset=0): 
+	def bounceLoop(self, clockspeed=0.02, row_offset=0, loops=1000):
+		'''
+		Main loop.
+		rows_full determines how far back up the printGrid() function will move the cursor in order to print over the existing grid.
+		Then the grid is printed and updated on 'clockspeed' intervals for a set duration.
+		'''
 		print(sc.hide_cursor)
-		rows_full=self.rows+row_offset#+1
-		for _ in range(1000): #Turn this into a while true loop with a break condition
+		rows_full=self.rows+row_offset#+1  #uncomment this if uncommenting the input below in order to not mess up the printing.
+		self.printGrid(0)
+		while loops > 0: #Consider implementing another break condition...
 			sleep(clockspeed)
 			self.printGrid(rows_full)
 			self.updateEntities()
+			loops -= 1
 			#input(f'{self.entities[0].speed} {self.entities[0].deltas} {self.entities[0].energy} - {self.entities[1].speed} {self.entities[1].deltas} {self.entities[1].energy}')
 			
 
 class BouncyEntity():
+	'''
+	Main entity class. Attributes:
+	symbol = the ASCII representation to be printed on the console
+	solidtype = determines how the entity is handled in case of collision
+	elasticity = Not implemented yet. Maybe will be used in the future to model non elastic collisions.
+	fgcolor, bgcolor = colors to wrap symbol with
+	speed = either set when instantiating or randomized if not specified (ranges from -100 to 100). Each axis has independent speed.
+	energy = determines whether entity will move in a given iteration of the loop (speed is added to energy every iteration)
+	deltas = indicates to which direction the entity will move (set depending on the speed, ranging from -1 to 1)
+	pos, targetpos = current and future position of the entity
+	'''
 	def __init__(self, symbol, solidtype='bouncy', elasticity=100, fgcolor='white', bgcolor='default', speed=None):
 		self.symbol=wrapColor(symbol, fgcolor, bgcolor)
 		self.solidtype=solidtype
@@ -169,6 +216,9 @@ class BouncyEntity():
 		self.targetpos=None
 
 class Wall():
+	'''
+	Special type of entity that doesn't move and wraps the whole grid.
+	'''
 	def __init__(self, symbol='#', solidtype='immobile', elasticity=100, fgcolor='white', bgcolor='default'):
 		self.symbol=wrapColor(symbol, fgcolor, bgcolor)
 		self.solidtype=solidtype
@@ -176,6 +226,10 @@ class Wall():
 		
 
 def wrapColor(string, fore='white', back='default'):
+	'''
+	Helper function that wraps any string in fore and background color. Possible colors are in dictionaries fgcolors and bgcolors.
+	Color selection can be randomized.
+	'''
 	if fore == back and not any([clr == 'rand' for clr in [fore,back]]):
 		raise Exception("Fore and Back color cannot be equal.")
 	fgcolors={'yellow':fg.yellow,'red':fg.red,'blue':fg.blue,'green':fg.green,'cyan':fg.cyan,'white':'','black':fg.lightblack,'magenta':fg.magenta}
@@ -191,7 +245,17 @@ def wrapColor(string, fore='white', back='default'):
 
 
 if __name__ == '__main__':
+	banner = """
+ ______                                ______                                
+(____  \                              (____  \                               
+ ____)  ) ___  _   _ ____   ____ _   _ ____)  ) ___  _   _ ____   ____ _____ 
+|  __  ( / _ \| | | |  _ \ / ___) | | |  __  ( / _ \| | | |  _ \ / ___) ___ |
+| |__)  ) |_| | |_| | | | ( (___| |_| | |__)  ) |_| | |_| | | | ( (___| ____|
+|______/ \___/|____/|_| |_|\____)\__  |______/ \___/|____/|_| |_|\____)_____)
+                                (____/                                       """
 	cls()
+	##############################################
+	#Sets terminal title and forces maximization (to prevent one line being printed in two lines)
 	import ctypes, os
 	os.system(f'title BouncyBounce v{version}')
 	user32 = ctypes.WinDLL('user32')
@@ -199,7 +263,11 @@ if __name__ == '__main__':
 	hWnd = user32.GetForegroundWindow()
 	user32.ShowWindow(hWnd, SW_MAXIMISE)
 	###############################################
+	print(banner)
 
+	
+	################################################
+	#Below are many different scenarios to help demo/test different types of collisions
 	
 	'''
 	#Two horizontal collides and two diagonal collides. Diagonal and horizontal meets at corner. 
@@ -270,11 +338,10 @@ if __name__ == '__main__':
 	a = BouncyGrid()
 	for _ in range(50):
 		a.addEntity('@')
-	
-	
-	
-	#try to think of a way to make animation more smooth
-	
 
+	#####################################################################################
+	
+	
+	
 	a.bounceLoop()
 	input('')
