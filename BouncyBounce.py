@@ -1,4 +1,4 @@
-version = '1.4'
+version = '1.5'
 from time import sleep
 from random import randint, choice
 from console.utils import cls
@@ -31,8 +31,7 @@ class BouncyGrid():
 		'''
 		Prints the grid. To avoid flickering, returns the cursor to the top and prints the whole grid as a string over it.
 		'''
-		print("\033[F"*rows_full, end='')
-		grid = ''
+		grid = "\033[F"*rows_full
 		for x in range(self.rows):
 			line = '\n'
 			for y in range(self.cols):
@@ -77,7 +76,7 @@ class BouncyGrid():
 			target = entity_queue[0].targetpos
 			
 			if isinstance(self.coords[target], Wall):
-				if entity_queue[0].deltas[0] and (self.coords[(entity_queue[0].pos[0],entity_queue[0].pos[1]+entity_queue[0].deltas[1])] == ' ' or self.coords[(entity_queue[0].pos[0]+entity_queue[0].deltas[0],entity_queue[0].pos[1])] != ' '):
+				if entity_queue[0].deltas[0] and (self.coords[(entity_queue[0].pos[0],entity_queue[0].pos[1]+entity_queue[0].deltas[1])] == ' ' or self.coords[(entity_queue[0].pos[0]+entity_queue[0].deltas[0],entity_queue[0].pos[1])] != ' '): #instead of != ' ', maybe make it != wall, because bouncy entity shouldnt turn a corner into a wall
 					entity_queue[0].speed[0] *= -1
 				if entity_queue[0].deltas[1] and (self.coords[(entity_queue[0].pos[0]+entity_queue[0].deltas[0],entity_queue[0].pos[1])] == ' ' or self.coords[(entity_queue[0].pos[0],entity_queue[0].pos[1]+entity_queue[0].deltas[1])] != ' '):
 					entity_queue[0].speed[1] *= -1
@@ -176,8 +175,19 @@ class BouncyGrid():
 					self.coords[entity.targetpos] = entity
 					entity.pos = entity.targetpos 
 
-
-
+	'''
+	def newPrint(self):  #Experimenting a new way of printing (manipulating console coordinates), but it's unfortunately worse than printGrid()
+		xoffset = banner.count('\n')+4
+		yoffset = 1 
+		print(sc.mv(xoffset,yoffset), end='')
+		for entity in self.entities:
+			with sc.location(entity.pos[1]+yoffset, entity.pos[0]+xoffset):
+				print(' ', end='')
+		for entity in self.entities:
+			with sc.location(entity.targetpos[1]+yoffset, entity.targetpos[0]+xoffset):
+				print(entity.symbol, end='')
+	'''
+	
 	def bounceLoop(self, clockspeed=0.02, row_offset=0, loops=1000):
 		'''
 		Main loop.
