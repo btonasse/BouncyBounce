@@ -1,0 +1,4 @@
+make a gravity/friction version and test with something like an entity launcher.
+	exclude non bouncy entities from update and add them as walls
+	
+make it so that only immobile entities prevent corner bouncing
